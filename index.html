@@ -19,129 +19,92 @@ canvas{
 position:fixed;
 top:0;
 left:0;
-z-index:0;
 }
 
 .panel{
-
 position:absolute;
 top:50%;
 left:50%;
-
 transform:translate(-50%,-50%);
-
-background:rgba(20,20,30,0.35);
-backdrop-filter:blur(20px);
-
-padding:40px;
-
-border-radius:18px;
-
 width:520px;
-
-box-shadow:0 30px 60px rgba(0,0,0,0.35);
-
-z-index:2;
-
+padding:35px;
+background:rgba(0,0,0,0.35);
+backdrop-filter:blur(18px);
+border-radius:16px;
+box-shadow:0 30px 60px rgba(0,0,0,0.4);
+z-index:10;
 }
 
 h1{
 margin-top:0;
 font-weight:500;
-letter-spacing:1px;
 }
 
 .file{
-
 display:flex;
 justify-content:space-between;
-
 padding:12px;
-
 margin:10px 0;
-
 border-radius:8px;
-
 background:rgba(255,255,255,0.08);
-
-transition:0.2s;
+transition:.2s;
 }
 
 .file:hover{
-background:rgba(255,255,255,0.15);
-transform:scale(1.02);
+background:rgba(255,255,255,0.18);
 }
 
 a{
 color:white;
 text-decoration:none;
-font-weight:300;
 }
 
 </style>
-
 </head>
 
 <body>
 
 <div class="panel">
-
 <h1>Study Materials</h1>
-
 <div id="files"></div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
 
-/* ---------- FILE LIST ---------- */
+/* FILE LIST */
 
-const files = [
-
+const files=[
 {name:"CNN Lecture Slides",url:"materials/cnn.pptx"},
 {name:"Deep Learning Notes",url:"materials/deep-learning.pdf"},
 {name:"SVM Study Material",url:"materials/svm.pdf"}
-
 ]
 
 const container=document.getElementById("files")
 
 files.forEach(f=>{
-
 const div=document.createElement("div")
-
 div.className="file"
-
-div.innerHTML=`
-<span>${f.name}</span>
-<a href="${f.url}" download>Download</a>
-`
-
+div.innerHTML=`<span>${f.name}</span><a href="${f.url}" download>Download</a>`
 container.appendChild(div)
-
 })
 
-/* ---------- THREE JS BACKGROUND ---------- */
+/* THREEJS BACKGROUND */
 
 const scene=new THREE.Scene()
 
 const camera=new THREE.Camera()
 
-const renderer=new THREE.WebGLRenderer({alpha:true})
-
+const renderer=new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth,window.innerHeight)
-
 document.body.appendChild(renderer.domElement)
 
 const geometry=new THREE.PlaneGeometry(2,2)
 
 const material=new THREE.ShaderMaterial({
 
-uniforms:{
-time:{value:0}
-},
+uniforms:{time:{value:0}},
 
 fragmentShader:`
 
@@ -157,16 +120,12 @@ void main(){
 
 vec2 uv=gl_FragCoord.xy/vec2(1920.,1080.);
 
-float a=sin(uv.x*4.+time*0.6);
-float b=sin(uv.y*3.+time*0.4);
-float c=sin((uv.x+uv.y)*2.+time*0.3);
+float w=sin(uv.x*5.+time*0.7)*0.5+0.5;
+float v=sin(uv.y*4.+time*0.5)*0.5+0.5;
 
-float mix1=(a+b)*0.5;
-float mix2=(b+c)*0.5;
-
-vec3 col=mix(c1,c2,mix1);
-col=mix(col,c3,mix2);
-col=mix(col,c4,sin(time*0.2)*0.5+0.5);
+vec3 col=mix(c1,c2,w);
+col=mix(col,c3,v);
+col=mix(col,c4,uv.x);
 col=mix(col,c5,uv.y);
 
 gl_FragColor=vec4(col,1.0);
@@ -177,25 +136,18 @@ gl_FragColor=vec4(col,1.0);
 })
 
 const mesh=new THREE.Mesh(geometry,material)
-
 scene.add(mesh)
 
 function animate(){
-
-material.uniforms.time.value+=0.01
-
+material.uniforms.time.value+=0.02
 renderer.render(scene,camera)
-
 requestAnimationFrame(animate)
-
 }
 
 animate()
 
 window.addEventListener("resize",()=>{
-
 renderer.setSize(window.innerWidth,window.innerHeight)
-
 })
 
 </script>
