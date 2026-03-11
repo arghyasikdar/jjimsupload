@@ -1,110 +1,266 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Study Materials</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 
+/* ---------- GLOBAL ---------- */
+
+*{
+box-sizing:border-box;
+}
+
 body{
+
 margin:0;
 overflow:hidden;
-font-family:Inter;
+
+font-family:'Inter',sans-serif;
+
 color:white;
+
 }
+
+/* THREE CANVAS */
 
 canvas{
 position:fixed;
 top:0;
 left:0;
+z-index:0;
 }
 
+/* ---------- CONTENT PANEL ---------- */
+
 .panel{
+
 position:absolute;
+
 top:50%;
 left:50%;
+
 transform:translate(-50%,-50%);
+
 width:520px;
-padding:35px;
+max-width:90%;
+
+padding:36px;
+
 background:rgba(0,0,0,0.35);
+
 backdrop-filter:blur(18px);
-border-radius:16px;
+
+border-radius:18px;
+
 box-shadow:0 30px 60px rgba(0,0,0,0.4);
+
 z-index:10;
+
 }
 
 h1{
+
 margin-top:0;
+
 font-weight:500;
+
+letter-spacing:0.5px;
+
 }
 
+/* ---------- FILE ITEMS ---------- */
+
 .file{
+
 display:flex;
+
 justify-content:space-between;
-padding:12px;
+
+align-items:center;
+
+padding:12px 14px;
+
 margin:10px 0;
-border-radius:8px;
+
+border-radius:10px;
+
 background:rgba(255,255,255,0.08);
-transition:.2s;
+
+transition:all .2s ease;
+
 }
 
 .file:hover{
+
 background:rgba(255,255,255,0.18);
+
+transform:translateY(-2px);
+
 }
 
-a{
+.file a{
+
 color:white;
+
 text-decoration:none;
+
+font-weight:300;
+
+}
+
+/* ---------- NEON FOOTER ---------- */
+
+.footer{
+
+position:fixed;
+
+bottom:25px;
+
+width:100%;
+
+text-align:center;
+
+z-index:20;
+
+}
+
+.footer a{
+
+font-size:18px;
+
+text-decoration:none;
+
+color:#ff2a2a;
+
+font-weight:500;
+
+/* neon glow */
+
+text-shadow:
+
+0 0 5px #ff2a2a,
+0 0 10px #ff2a2a,
+0 0 20px #ff2a2a,
+0 0 40px #ff0000,
+0 0 80px #ff0000;
+
+transition:0.2s;
+
+}
+
+.footer a:hover{
+
+text-shadow:
+
+0 0 10px #ff3b3b,
+0 0 20px #ff3b3b,
+0 0 40px #ff0000,
+0 0 80px #ff0000,
+0 0 120px #ff0000;
+
 }
 
 </style>
+
 </head>
 
 <body>
 
+<!-- ---------- DOWNLOAD PANEL ---------- -->
+
 <div class="panel">
+
 <h1>Study Materials</h1>
+
 <div id="files"></div>
+
 </div>
+
+
+<!-- ---------- FOOTER ---------- -->
+
+<div class="footer">
+
+<a href="https://arghyas.vercel.app" target="_blank">Author</a>
+
+</div>
+
+
+<!-- ---------- THREEJS ---------- -->
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
 
-/* FILE LIST */
+/* ---------- FILE LIST ---------- */
 
 const files=[
-{name:"Deep Learning",url:"materials/dl4s.pdf"},
-{name:"Advanced ML",url:"materials/Advanced_ML_Study_Material.pdf"},
-{name:"Don't Click Here",url:"https://arghyas.vercel.app"}
+
+{
+name:"Advanced Machine Learning Notes",
+url:"materials/Advanced_ML_Study_Material.pdf"
+},
+
+{
+name:"Deep Learning Notes",
+url:"materials/dl4s.pdf"
+}
+
 ]
 
 const container=document.getElementById("files")
 
-files.forEach(f=>{
+files.forEach(file=>{
+
 const div=document.createElement("div")
+
 div.className="file"
-div.innerHTML=`<span>${f.name}</span><a href="${f.url}" download>Download</a>`
+
+div.innerHTML=`
+<span>${file.name}</span>
+<a href="${file.url}" download>Download</a>
+`
+
 container.appendChild(div)
+
 })
 
-/* THREEJS BACKGROUND */
+
+/* ---------- THREE BACKGROUND ---------- */
 
 const scene=new THREE.Scene()
 
 const camera=new THREE.Camera()
 
-const renderer=new THREE.WebGLRenderer()
+const renderer=new THREE.WebGLRenderer({
+antialias:true
+})
+
 renderer.setSize(window.innerWidth,window.innerHeight)
+
 document.body.appendChild(renderer.domElement)
+
+
+/* FULLSCREEN PLANE */
 
 const geometry=new THREE.PlaneGeometry(2,2)
 
+
+/* COLOR PALETTE */
+
 const material=new THREE.ShaderMaterial({
 
-uniforms:{time:{value:0}},
+uniforms:{
+time:{value:0}
+},
 
 fragmentShader:`
 
@@ -135,19 +291,31 @@ gl_FragColor=vec4(col,1.0);
 
 })
 
+
 const mesh=new THREE.Mesh(geometry,material)
+
 scene.add(mesh)
 
+
 function animate(){
+
 material.uniforms.time.value+=0.02
+
 renderer.render(scene,camera)
+
 requestAnimationFrame(animate)
+
 }
 
 animate()
 
+
+/* RESPONSIVE */
+
 window.addEventListener("resize",()=>{
+
 renderer.setSize(window.innerWidth,window.innerHeight)
+
 })
 
 </script>
