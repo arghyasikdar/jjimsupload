@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Study Material Library</title>
+<title>Study Materials</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500&family=Nunito:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500&display=swap" rel="stylesheet">
 
 <style>
 
 body{
 margin:0;
 overflow:hidden;
-font-family:'Nunito';
-background:#f6e7cb;
+font-family:Inter;
+color:white;
 }
 
 canvas{
@@ -22,77 +22,60 @@ left:0;
 z-index:0;
 }
 
-.container{
+.panel{
 
-position:relative;
-z-index:2;
+position:absolute;
+top:50%;
+left:50%;
 
-width:650px;
-margin:auto;
-margin-top:80px;
+transform:translate(-50%,-50%);
 
-background:#fff8ef;
+background:rgba(20,20,30,0.35);
+backdrop-filter:blur(20px);
 
 padding:40px;
 
-border-radius:12px;
+border-radius:18px;
 
-box-shadow:0 15px 40px rgba(0,0,0,0.2);
+width:520px;
 
-text-align:center;
+box-shadow:0 30px 60px rgba(0,0,0,0.35);
+
+z-index:2;
 
 }
 
 h1{
-font-family:'Playfair Display';
-color:#3d2b1f;
-}
-
-.subtitle{
-color:#7a5c42;
-margin-bottom:30px;
+margin-top:0;
+font-weight:500;
+letter-spacing:1px;
 }
 
 .file{
 
 display:flex;
 justify-content:space-between;
-align-items:center;
 
-background:#f3e5d0;
+padding:12px;
 
-padding:14px;
-
-margin:12px 0;
+margin:10px 0;
 
 border-radius:8px;
 
-transition:0.2s;
+background:rgba(255,255,255,0.08);
 
+transition:0.2s;
 }
 
 .file:hover{
-transform:scale(1.03);
-background:#ecd8be;
+background:rgba(255,255,255,0.15);
+transform:scale(1.02);
 }
 
-.download{
-
-background:#b45f4c;
+a{
 color:white;
-
-padding:6px 14px;
-
-border-radius:6px;
-
 text-decoration:none;
-
-font-size:14px;
-
-}
-
-.download:hover{
-background:#8d4738;
+font-weight:300;
 }
 
 </style>
@@ -101,16 +84,15 @@ background:#8d4738;
 
 <body>
 
-<div class="container">
+<div class="panel">
 
-<h1>Study Material Library</h1>
-<p class="subtitle">Deep Learning • AIML • Notes & Presentations</p>
+<h1>Study Materials</h1>
 
 <div id="files"></div>
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
 
@@ -118,101 +100,99 @@ background:#8d4738;
 
 const files = [
 
-{name:"CNN Lecture PPT",url:"materials/cnn.pptx"},
+{name:"CNN Lecture Slides",url:"materials/cnn.pptx"},
 {name:"Deep Learning Notes",url:"materials/deep-learning.pdf"},
-{name:"SVM Study Material",url:"materials/svm-notes.pdf"}
+{name:"SVM Study Material",url:"materials/svm.pdf"}
 
 ]
 
 const container=document.getElementById("files")
 
-files.forEach(file=>{
+files.forEach(f=>{
 
 const div=document.createElement("div")
 
 div.className="file"
 
 div.innerHTML=`
-<span>${file.name}</span>
-<a class="download" href="${file.url}" download>Download</a>
+<span>${f.name}</span>
+<a href="${f.url}" download>Download</a>
 `
 
 container.appendChild(div)
 
 })
 
-
 /* ---------- THREE JS BACKGROUND ---------- */
 
-const scene = new THREE.Scene()
+const scene=new THREE.Scene()
 
-const camera = new THREE.PerspectiveCamera(
-75,
-window.innerWidth/window.innerHeight,
-0.1,
-1000
-)
+const camera=new THREE.Camera()
 
-const renderer = new THREE.WebGLRenderer({alpha:true})
+const renderer=new THREE.WebGLRenderer({alpha:true})
 
 renderer.setSize(window.innerWidth,window.innerHeight)
 
 document.body.appendChild(renderer.domElement)
 
-camera.position.z=5
+const geometry=new THREE.PlaneGeometry(2,2)
 
+const material=new THREE.ShaderMaterial({
 
-const objects=[]
+uniforms:{
+time:{value:0}
+},
 
-const colors=[
-0xe6b89c,
-0xedc7b7,
-0xf7d6bf,
-0xd4a373
-]
+fragmentShader:`
 
-for(let i=0;i<40;i++){
+uniform float time;
 
-const geometry=new THREE.IcosahedronGeometry(0.3)
+vec3 c1=vec3(0.20,0.33,0.62);
+vec3 c2=vec3(0.49,0.67,0.84);
+vec3 c3=vec3(0.75,0.72,0.85);
+vec3 c4=vec3(0.91,0.72,0.83);
+vec3 c5=vec3(0.65,0.40,0.56);
 
-const material=new THREE.MeshBasicMaterial({
-color:colors[Math.floor(Math.random()*colors.length)],
-wireframe:true
+void main(){
+
+vec2 uv=gl_FragCoord.xy/vec2(1920.,1080.);
+
+float a=sin(uv.x*4.+time*0.6);
+float b=sin(uv.y*3.+time*0.4);
+float c=sin((uv.x+uv.y)*2.+time*0.3);
+
+float mix1=(a+b)*0.5;
+float mix2=(b+c)*0.5;
+
+vec3 col=mix(c1,c2,mix1);
+col=mix(col,c3,mix2);
+col=mix(col,c4,sin(time*0.2)*0.5+0.5);
+col=mix(col,c5,uv.y);
+
+gl_FragColor=vec4(col,1.0);
+
+}
+`
+
 })
 
 const mesh=new THREE.Mesh(geometry,material)
 
-mesh.position.x=(Math.random()-0.5)*12
-mesh.position.y=(Math.random()-0.5)*8
-mesh.position.z=(Math.random()-0.5)*5
-
 scene.add(mesh)
-
-objects.push(mesh)
-
-}
-
 
 function animate(){
 
-requestAnimationFrame(animate)
-
-objects.forEach(o=>{
-o.rotation.x+=0.003
-o.rotation.y+=0.002
-})
+material.uniforms.time.value+=0.01
 
 renderer.render(scene,camera)
+
+requestAnimationFrame(animate)
 
 }
 
 animate()
 
-
 window.addEventListener("resize",()=>{
-
-camera.aspect=window.innerWidth/window.innerHeight
-camera.updateProjectionMatrix()
 
 renderer.setSize(window.innerWidth,window.innerHeight)
 
