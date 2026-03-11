@@ -1,4 +1,4 @@
-const repo = "YOUR_GITHUB_USERNAME/YOUR_REPO"
+const repo = "arghyasikdar/jjimsupload"
 
 async function loadFiles(){
 
