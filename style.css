@@ -1,0 +1,104 @@
+body{
+
+    background: linear-gradient(
+    135deg,
+    #f6e7cb,
+    #e6d5b8,
+    #d8c3a5
+    );
+    
+    font-family: "Nunito", sans-serif;
+    
+    margin:0;
+    height:100vh;
+    
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    
+    }
+    
+    
+    .container{
+    
+    background:#fff8ef;
+    
+    padding:40px;
+    
+    border-radius:12px;
+    
+    width:600px;
+    
+    box-shadow:
+    0 15px 40px rgba(0,0,0,0.15);
+    
+    text-align:center;
+    
+    }
+    
+    
+    h1{
+    
+    font-family:"Playfair Display";
+    
+    color:#3d2b1f;
+    
+    margin-bottom:10px;
+    
+    }
+    
+    .subtitle{
+    
+    color:#7a5c42;
+    
+    margin-bottom:30px;
+    
+    }
+    
+    
+    .file{
+    
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    
+    background:#f3e5d0;
+    
+    padding:12px;
+    
+    margin:10px 0;
+    
+    border-radius:8px;
+    
+    transition:0.2s;
+    
+    }
+    
+    .file:hover{
+    
+    transform:scale(1.02);
+    background:#ecd8be;
+    
+    }
+    
+    .download{
+    
+    background:#b45f4c;
+    
+    color:white;
+    
+    padding:6px 14px;
+    
+    border-radius:6px;
+    
+    text-decoration:none;
+    
+    font-size:14px;
+    
+    }
+    
+    .download:hover{
+    
+    background:#8d4738;
+    
+    }
