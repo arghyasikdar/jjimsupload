@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Learning Optimizer Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --bg1: #0f1117;
+    --bg2: #151820;
+    --bg3: #1c2030;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --accent: #4ade80;
+    --accent2: #60a5fa;
+    --accent3: #f97316;
+    --accent4: #a78bfa;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --sgd-color: #60a5fa;
+    --adam-color: #4ade80;
+    --rms-color: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 2rem 3rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+
+  .logo-area h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+
+  .logo-area h1 span { color: var(--accent); }
+
+  .logo-area p {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: 0.65rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .badge-sgd  { color: var(--sgd-color);  border-color: rgba(96,165,250,0.3);  background: rgba(96,165,250,0.06); }
+  .badge-adam { color: var(--adam-color); border-color: rgba(74,222,128,0.3);  background: rgba(74,222,128,0.06); }
+  .badge-rms  { color: var(--rms-color);  border-color: rgba(249,115,22,0.3);  background: rgba(249,115,22,0.06); }
+
+  /* ── MAIN LAYOUT ── */
+  .main-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    overflow-y: auto;
+    max-height: calc(100vh - 80px);
+    position: sticky;
+    top: 0;
+  }
+
+  .section-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Dataset cards */
+  .dataset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .ds-card {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--bg1);
+  }
+
+  .ds-card:hover { border-color: var(--border2); background: var(--bg2); }
+  .ds-card.active { border-color: var(--accent); background: rgba(74,222,128,0.06); }
+
+  .ds-card-title {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .ds-card-sub {
+    font-size: 0.6rem;
+    color: var(--muted);
+  }
+
+  .ds-card-tag {
+    display: inline-block;
+    font-size: 0.55rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-top: 4px;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+  }
+
+  /* Optimizer toggle */
+  .opt-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: var(--bg1);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .opt-tab {
+    padding: 7px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .opt-tab:hover { color: var(--text); background: var(--bg3); }
+  .opt-tab[data-opt="sgd"].active  { background: rgba(96,165,250,0.15); color: var(--sgd-color); }
+  .opt-tab[data-opt="adam"].active { background: rgba(74,222,128,0.15); color: var(--adam-color); }
+  .opt-tab[data-opt="rms"].active  { background: rgba(249,115,22,0.15);  color: var(--rms-color); }
+
+  /* Sliders */
+  .param-block { display: flex; flex-direction: column; gap: 8px; }
+
+  .param-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .param-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .param-name {
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+
+  .param-val {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--bg3);
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    transition: transform 0.1s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .run-btn {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .run-btn:hover { background: #86efac; }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .run-btn:active:not(:disabled) { transform: scale(0.98); }
+
+  .cmp-btn {
+    width: 100%;
+    padding: 9px;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .cmp-btn:hover { background: var(--bg2); border-color: var(--border2); }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+  }
+
+  /* Metrics row */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+
+  .metric-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: border-color 0.2s;
+  }
+
+  .metric-card.highlight { border-color: rgba(74,222,128,0.3); }
+
+  .metric-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .metric-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    line-height: 1;
+  }
+
+  .metric-value.good  { color: var(--adam-color); }
+  .metric-value.warn  { color: var(--yellow); }
+  .metric-value.bad   { color: var(--red); }
+
+  .metric-sub {
+    font-size: 0.55rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* Charts grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .chart-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+
+  .chart-card.full { grid-column: 1 / -1; }
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+
+  .chart-title {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .chart-sub {
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .legend-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .leg {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.6rem;
+    color: var(--muted);
+  }
+
+  .leg-line {
+    width: 18px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  /* Status bar */
+  .status-bar {
+    padding: 8px 14px;
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .status-dot.running { background: var(--accent); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Progress bar */
+  .progress-outer {
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .progress-inner {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.1s;
+    width: 0%;
+  }
+
+  /* ── CODE SECTION ── */
+  .code-section {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .code-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    overflow-x: auto;
+  }
+
+  .code-tab {
+    padding: 10px 16px;
+    font-size: 0.65rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .code-tab:hover { color: var(--text); }
+  .code-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .code-body {
+    padding: 0;
+    overflow-x: auto;
+    font-size: 0.7rem;
+    line-height: 1.7;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  .code-panel { display: none; }
+  .code-panel.active { display: block; }
+
+  pre {
+    padding: 1.25rem 1.5rem;
+    margin: 0;
+    color: #cdd6f4;
+  }
+
+  /* Syntax highlighting */
+  .k  { color: #cba6f7; } /* keyword */
+  .kw { color: #89dceb; } /* keyword2 */
+  .fn { color: #89b4fa; } /* function */
+  .cl { color: #a6e3a1; } /* class */
+  .st { color: #a6e3a1; } /* string */
+  .nm { color: #fab387; } /* number */
+  .cm { color: #585b70; font-style: italic; } /* comment */
+  .op { color: #cdd6f4; } /* operator */
+  .tp { color: #f9e2af; } /* type */
+
+  /* Scatter plot canvas */
+  .dataset-preview {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+
+  .ds-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .ds-mini {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .ds-mini:hover { border-color: var(--border2); }
+  .ds-mini.active { border-color: var(--accent); }
+
+  .ds-mini canvas { display: block; width: 100%; }
+
+  .ds-mini-label {
+    padding: 4px 8px;
+    font-size: 0.58rem;
+    color: var(--muted);
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  @media (max-width: 900px) {
+    .main-layout { grid-template-columns: 1fr; }
+    .left-panel { max-height: none; position: static; }
+    .metrics-row { grid-template-columns: repeat(3, 1fr); }
+    .charts-grid { grid-template-columns: 1fr; }
+    .ds-preview-grid { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-area">
+    <h1>Optimizer<span>Lab</span></h1>
+    <p>Deep Neural Network Training — Interactive Benchmark</p>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-sgd">SGD + Momentum</span>
+    <span class="badge badge-adam">Adam</span>
+    <span class="badge badge-rms">RMSprop</span>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- ═══════════════ LEFT PANEL ═══════════════ -->
+  <div class="left-panel">
+
+    <div>
+      <div class="section-label">Dataset</div>
+      <div class="dataset-grid">
+        <div class="ds-card active" onclick="selectDataset('moons')" id="ds-moons">
+          <div class="ds-card-title">Two Moons</div>
+          <div class="ds-card-sub">Binary classification</div>
+          <div class="ds-card-tag">non-linear</div>
+        </div>
+        <div class="ds-card" onclick="selectDataset('circles')" id="ds-circles">
+          <div class="ds-card-title">Circles</div>
+          <div class="ds-card-sub">Binary classification</div>
+          <div class="ds-card-tag">concentric</div>
+        </div>
+        <div class="ds-card" onclick="selectDataset('xor')" id="ds-xor">
+          <div class="ds-card-title">XOR Pattern</div>
+          <div class="ds-card-sub">Binary classification</div>
+          <div class="ds-card-tag">discontinuous</div>
+        </div>
+        <div class="ds-card" onclick="selectDataset('spiral')" id="ds-spiral">
+          <div class="ds-card-title">Spiral</div>
+          <div class="ds-card-sub">Multi-class (3)</div>
+          <div class="ds-card-tag">complex</div>
+        </div>
+        <div class="ds-card" onclick="selectDataset('linear')" id="ds-linear">
+          <div class="ds-card-title">Regression</div>
+          <div class="ds-card-sub">Sine + noise</div>
+          <div class="ds-card-tag">regression</div>
+        </div>
+        <div class="ds-card" onclick="selectDataset('blob')" id="ds-blob">
+          <div class="ds-card-title">Blobs</div>
+          <div class="ds-card-sub">Multi-class (4)</div>
+          <div class="ds-card-tag">gaussian</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Optimizer</div>
+      <div class="opt-tabs">
+        <button class="opt-tab active" data-opt="sgd"  onclick="selectOpt('sgd')">SGD</button>
+        <button class="opt-tab"        data-opt="adam" onclick="selectOpt('adam')">Adam</button>
+        <button class="opt-tab"        data-opt="rms"  onclick="selectOpt('rms')">RMS</button>
+      </div>
+    </div>
+
+    <!-- SGD params -->
+    <div id="params-sgd" class="param-block">
+      <div class="section-label">SGD Parameters</div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">Learning Rate (η)</span><span class="param-val" id="v-lr-sgd">0.0100</span></div>
+        <input type="range" min="-4" max="-1" step="0.05" value="-2" id="sl-lr-sgd" oninput="sliderLog('lr-sgd',this)">
+      </div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">Momentum (β)</span><span class="param-val" id="v-mom">0.900</span></div>
+        <input type="range" min="0" max="0.99" step="0.01" value="0.9" id="sl-mom" oninput="sliderLinear('mom',this,3)">
+      </div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">Weight Decay (λ)</span><span class="param-val" id="v-wd">0.0001</span></div>
+        <input type="range" min="-5" max="-2" step="0.1" value="-4" id="sl-wd" oninput="sliderLog('wd',this)">
+      </div>
+    </div>
+
+    <!-- Adam params -->
+    <div id="params-adam" class="param-block" style="display:none">
+      <div class="section-label">Adam Parameters</div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">Learning Rate (η)</span><span class="param-val" id="v-lr-adam">0.0010</span></div>
+        <input type="range" min="-4" max="-1" step="0.05" value="-3" id="sl-lr-adam" oninput="sliderLog('lr-adam',this)">
+      </div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">β₁ (1st moment)</span><span class="param-val" id="v-b1">0.900</span></div>
+        <input type="range" min="0.5" max="0.999" step="0.001" value="0.9" id="sl-b1" oninput="sliderLinear('b1',this,3)">
+      </div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">β₂ (2nd moment)</span><span class="param-val" id="v-b2">0.9990</span></div>
+        <input type="range" min="0.9" max="0.9999" step="0.0001" value="0.999" id="sl-b2" oninput="sliderLinear('b2',this,4)">
+      </div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">ε (epsilon)</span><span class="param-val" id="v-eps">1e-8</span></div>
+        <input type="range" min="-9" max="-4" step="0.5" value="-8" id="sl-eps" oninput="sliderEps('eps',this)">
+      </div>
+    </div>
+
+    <!-- RMSprop params -->
+    <div id="params-rms" class="param-block" style="display:none">
+      <div class="section-label">RMSprop Parameters</div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">Learning Rate (η)</span><span class="param-val" id="v-lr-rms">0.0030</span></div>
+        <input type="range" min="-4" max="-1" step="0.05" value="-2.5" id="sl-lr-rms" oninput="sliderLog('lr-rms',this)">
+      </div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">Decay Factor (α)</span><span class="param-val" id="v-alpha">0.990</span></div>
+        <input type="range" min="0.8" max="0.999" step="0.001" value="0.99" id="sl-alpha" oninput="sliderLinear('alpha',this,3)">
+      </div>
+      <div class="param-row">
+        <div class="param-header"><span class="param-name">Momentum</span><span class="param-val" id="v-rms-mom">0.000</span></div>
+        <input type="range" min="0" max="0.9" step="0.01" value="0" id="sl-rms-mom" oninput="sliderLinear('rms-mom',this,3)">
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Training Config</div>
+      <div class="param-block">
+        <div class="param-row">
+          <div class="param-header"><span class="param-name">Epochs</span><span class="param-val" id="v-epochs">80</span></div>
+          <input type="range" min="20" max="300" step="10" value="80" id="sl-epochs" oninput="sliderLinear('epochs',this,0)">
+        </div>
+        <div class="param-row">
+          <div class="param-header"><span class="param-name">Batch Size</span><span class="param-val" id="v-batch">32</span></div>
+          <input type="range" min="8" max="256" step="8" value="32" id="sl-batch" oninput="sliderLinear('batch',this,0)">
+        </div>
+        <div class="param-row">
+          <div class="param-header"><span class="param-name">Hidden Layers</span><span class="param-val" id="v-hlayers">3</span></div>
+          <input type="range" min="1" max="5" step="1" value="3" id="sl-hlayers" oninput="sliderLinear('hlayers',this,0)">
+        </div>
+        <div class="param-row">
+          <div class="param-header"><span class="param-name">Neurons / Layer</span><span class="param-val" id="v-neurons">64</span></div>
+          <input type="range" min="8" max="256" step="8" value="64" id="sl-neurons" oninput="sliderLinear('neurons',this,0)">
+        </div>
+      </div>
+    </div>
+
+    <button class="run-btn" id="run-btn" onclick="startTraining()">
+      <span id="run-icon">▶</span>
+      <span id="run-label">Train Network</span>
+    </button>
+    <button class="cmp-btn" onclick="compareAll()">⇄ Compare All Optimizers</button>
+  </div>
+
+  <!-- ═══════════════ RIGHT PANEL ═══════════════ -->
+  <div class="right-panel">
+
+    <!-- Status + Progress -->
+    <div>
+      <div class="status-bar">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Ready — select dataset and optimizer, then press Train.</span>
+      </div>
+      <div class="progress-outer">
+        <div class="progress-inner" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Train Loss</div>
+        <div class="metric-value" id="m-tloss">—</div>
+        <div class="metric-sub" id="m-tloss-sub">Cross-entropy</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Val Loss</div>
+        <div class="metric-value" id="m-vloss">—</div>
+        <div class="metric-sub">Holdout 20%</div>
+      </div>
+      <div class="metric-card highlight">
+        <div class="metric-label" id="m3-label">Accuracy</div>
+        <div class="metric-value good" id="m-perf">—</div>
+        <div class="metric-sub" id="m-perf-sub">Validation set</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">‖∇L‖ Grad Norm</div>
+        <div class="metric-value" id="m-gnorm">—</div>
+        <div class="metric-sub">Current</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Epoch</div>
+        <div class="metric-value" id="m-epoch">—</div>
+        <div class="metric-sub" id="m-epoch-sub">/ 80</div>
+      </div>
+    </div>
+
+    <!-- Dataset preview -->
+    <div class="dataset-preview">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Dataset Visualizations</div>
+          <div class="chart-sub">Click to select — shows class distributions and structure</div>
+        </div>
+      </div>
+      <div class="ds-preview-grid" id="ds-preview-grid">
+        <div class="ds-mini active" id="mini-moons" onclick="selectDataset('moons')">
+          <canvas id="cv-moons" height="90"></canvas>
+          <div class="ds-mini-label">Two Moons</div>
+        </div>
+        <div class="ds-mini" id="mini-circles" onclick="selectDataset('circles')">
+          <canvas id="cv-circles" height="90"></canvas>
+          <div class="ds-mini-label">Circles</div>
+        </div>
+        <div class="ds-mini" id="mini-xor" onclick="selectDataset('xor')">
+          <canvas id="cv-xor" height="90"></canvas>
+          <div class="ds-mini-label">XOR Pattern</div>
+        </div>
+        <div class="ds-mini" id="mini-spiral" onclick="selectDataset('spiral')">
+          <canvas id="cv-spiral" height="90"></canvas>
+          <div class="ds-mini-label">Spiral</div>
+        </div>
+        <div class="ds-mini" id="mini-linear" onclick="selectDataset('linear')">
+          <canvas id="cv-linear" height="90"></canvas>
+          <div class="ds-mini-label">Regression</div>
+        </div>
+        <div class="ds-mini" id="mini-blob" onclick="selectDataset('blob')">
+          <canvas id="cv-blob" height="90"></canvas>
+          <div class="ds-mini-label">Blobs</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Loss Curve</div>
+            <div class="chart-sub">Train vs Validation</div>
+          </div>
+          <div class="legend-row">
+            <div class="leg"><div class="leg-line" style="background:var(--accent2)"></div>Train</div>
+            <div class="leg"><div class="leg-line" style="background:var(--accent2);opacity:0.4"></div>Val</div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:220px"><canvas id="lossChart"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Accuracy / R²</div>
+            <div class="chart-sub">Validation metric over epochs</div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:220px"><canvas id="accChart"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Gradient Norm ‖∇L‖</div>
+            <div class="chart-sub">Measures gradient magnitude</div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:200px"><canvas id="gradChart"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Effective Learning Rate</div>
+            <div class="chart-sub">Per-step adapted rate</div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:200px"><canvas id="effLrChart"></canvas></div>
+      </div>
+
+      <div class="chart-card full">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Optimizer Comparison — Validation Loss</div>
+            <div class="chart-sub">All three optimizers on current dataset with default hyperparameters</div>
+          </div>
+          <div class="legend-row">
+            <div class="leg"><div class="leg-line" style="background:var(--sgd-color)"></div>SGD+Mom</div>
+            <div class="leg"><div class="leg-line" style="background:var(--adam-color)"></div>Adam</div>
+            <div class="leg"><div class="leg-line" style="background:var(--rms-color)"></div>RMSprop</div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:220px"><canvas id="cmpChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Code Section -->
+    <div class="code-section">
+      <div class="code-tabs">
+        <button class="code-tab active" onclick="showCode('full')"   id="ctab-full">Full Training Loop</button>
+        <button class="code-tab"        onclick="showCode('sgd')"    id="ctab-sgd">SGD + Momentum</button>
+        <button class="code-tab"        onclick="showCode('adam')"   id="ctab-adam">Adam</button>
+        <button class="code-tab"        onclick="showCode('rms')"    id="ctab-rms">RMSprop</button>
+        <button class="code-tab"        onclick="showCode('data')"   id="ctab-data">Datasets</button>
+        <button class="code-tab"        onclick="showCode('model')"  id="ctab-model">Model / MLP</button>
+      </div>
+      <div class="code-body">
+
+        <div class="code-panel active" id="code-full"><pre>
+<span class="cm"># ═══════════════════════════════════════════════════════</span>
+<span class="cm">#  Deep Learning Optimizer Lab — Full Training Pipeline</span>
+<span class="cm"># ═══════════════════════════════════════════════════════</span>
+<span class="k">import</span> numpy <span class="k">as</span> np
+<span class="k">from</span> sklearn.datasets <span class="k">import</span> make_moons, make_circles, make_blobs
+<span class="k">from</span> sklearn.model_selection <span class="k">import</span> train_test_split
+<span class="k">from</span> sklearn.preprocessing <span class="k">import</span> StandardScaler
+
+<span class="cm"># ─── Config ─────────────────────────────────────────────</span>
+config = {
+    <span class="st">'optimizer'</span>:  <span class="st">'adam'</span>,          <span class="cm"># 'sgd' | 'adam' | 'rmsprop'</span>
+    <span class="st">'lr'</span>:         <span class="nm">1e-3</span>,
+    <span class="st">'epochs'</span>:     <span class="nm">100</span>,
+    <span class="st">'batch_size'</span>: <span class="nm">32</span>,
+    <span class="st">'layers'</span>:     [<span class="nm">64</span>, <span class="nm">64</span>, <span class="nm">64</span>],    <span class="cm"># hidden layer sizes</span>
+    <span class="st">'dropout'</span>:    <span class="nm">0.1</span>,
+    <span class="st">'dataset'</span>:    <span class="st">'moons'</span>,
+}
+
+<span class="cm"># ─── Dataset ────────────────────────────────────────────</span>
+X, y = make_moons(n_samples=<span class="nm">1000</span>, noise=<span class="nm">0.2</span>, random_state=<span class="nm">42</span>)
+X = StandardScaler().fit_transform(X)
+X_train, X_val, y_train, y_val = train_test_split(
+    X, y, test_size=<span class="nm">0.2</span>, random_state=<span class="nm">42</span>
+)
+
+<span class="cm"># ─── Model ──────────────────────────────────────────────</span>
+model = MLP(
+    input_dim=X_train.shape[<span class="nm">1</span>],
+    hidden_layers=config[<span class="st">'layers'</span>],
+    output_dim=<span class="nm">2</span>,
+    activation=<span class="st">'relu'</span>,
+    dropout=config[<span class="st">'dropout'</span>],
+)
+
+<span class="cm"># ─── Optimizer ──────────────────────────────────────────</span>
+optimizer = <span class="fn">get_optimizer</span>(config)
+
+<span class="cm"># ─── Training Loop ──────────────────────────────────────</span>
+history = {<span class="st">'train_loss'</span>: [], <span class="st">'val_loss'</span>: [], <span class="st">'val_acc'</span>: []}
+
+<span class="k">for</span> epoch <span class="k">in</span> <span class="fn">range</span>(config[<span class="st">'epochs'</span>]):
+    model.<span class="fn">train</span>()
+    epoch_loss = <span class="nm">0</span>
+
+    <span class="cm"># Mini-batch SGD</span>
+    idx = np.random.<span class="fn">permutation</span>(<span class="fn">len</span>(X_train))
+    <span class="k">for</span> start <span class="k">in</span> <span class="fn">range</span>(<span class="nm">0</span>, <span class="fn">len</span>(X_train), config[<span class="st">'batch_size'</span>]):
+        batch_idx = idx[start : start + config[<span class="st">'batch_size'</span>]]
+        Xb, yb   = X_train[batch_idx], y_train[batch_idx]
+
+        <span class="cm"># Forward pass</span>
+        logits = model.<span class="fn">forward</span>(Xb)
+        loss   = <span class="fn">cross_entropy_loss</span>(logits, yb)
+
+        <span class="cm"># Backward pass</span>
+        grads = model.<span class="fn">backward</span>(loss)
+
+        <span class="cm"># Optimizer step</span>
+        optimizer.<span class="fn">step</span>(model.params, grads)
+        epoch_loss += loss.<span class="fn">item</span>()
+
+    <span class="cm"># Validation</span>
+    model.<span class="fn">eval</span>()
+    val_logits   = model.<span class="fn">forward</span>(X_val)
+    val_loss     = <span class="fn">cross_entropy_loss</span>(val_logits, y_val)
+    val_acc      = <span class="fn">accuracy</span>(val_logits, y_val)
+
+    history[<span class="st">'train_loss'</span>].<span class="fn">append</span>(epoch_loss / <span class="fn">len</span>(X_train))
+    history[<span class="st">'val_loss'</span>].<span class="fn">append</span>(val_loss.<span class="fn">item</span>())
+    history[<span class="st">'val_acc'</span>].<span class="fn">append</span>(val_acc)
+
+    <span class="k">if</span> (epoch + <span class="nm">1</span>) % <span class="nm">10</span> == <span class="nm">0</span>:
+        <span class="fn">print</span>(<span class="st">f"Epoch {epoch+1:3d} │ loss: {epoch_loss:.4f} │ val_acc: {val_acc:.3f}"</span>)
+</pre></div>
+
+        <div class="code-panel" id="code-sgd"><pre>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="cm">#  SGD with Momentum (Nesterov optional)</span>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="k">class</span> <span class="cl">SGDMomentum</span>:
+    <span class="k">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, lr=<span class="nm">0.01</span>, momentum=<span class="nm">0.9</span>,
+                 weight_decay=<span class="nm">1e-4</span>, nesterov=<span class="nm">False</span>):
+        <span class="kw">self</span>.lr           = lr
+        <span class="kw">self</span>.momentum     = momentum
+        <span class="kw">self</span>.weight_decay = weight_decay
+        <span class="kw">self</span>.nesterov     = nesterov
+        <span class="kw">self</span>.velocity     = {}   <span class="cm"># v_t per parameter</span>
+        <span class="kw">self</span>.t            = <span class="nm">0</span>
+
+    <span class="k">def</span> <span class="fn">step</span>(<span class="kw">self</span>, params, grads):
+        <span class="kw">self</span>.t += <span class="nm">1</span>
+        <span class="k">for</span> name, param <span class="k">in</span> params.<span class="fn">items</span>():
+            g = grads[name]
+
+            <span class="cm"># L2 regularisation (weight decay)</span>
+            <span class="k">if</span> <span class="kw">self</span>.weight_decay > <span class="nm">0</span>:
+                g = g + <span class="kw">self</span>.weight_decay * param
+
+            <span class="cm"># Initialise velocity</span>
+            <span class="k">if</span> name <span class="k">not in</span> <span class="kw">self</span>.velocity:
+                <span class="kw">self</span>.velocity[name] = np.<span class="fn">zeros_like</span>(param)
+
+            v = <span class="kw">self</span>.velocity[name]
+
+            <span class="cm"># Momentum update:  v_t = β·v_{t-1} + g_t</span>
+            v_new = <span class="kw">self</span>.momentum * v + g
+            <span class="kw">self</span>.velocity[name] = v_new
+
+            <span class="k">if</span> <span class="kw">self</span>.nesterov:
+                <span class="cm"># Nesterov: look-ahead gradient</span>
+                <span class="cm"># θ ← θ − η·(β·v_new + g)</span>
+                param -= <span class="kw">self</span>.lr * (<span class="kw">self</span>.momentum * v_new + g)
+            <span class="k">else</span>:
+                <span class="cm"># Classic momentum:  θ ← θ − η·v_t</span>
+                param -= <span class="kw">self</span>.lr * v_new
+
+<span class="cm"># ─── Key intuition ──────────────────────────────────</span>
+<span class="cm">#  The velocity term accumulates gradient history.</span>
+<span class="cm">#  High momentum (β → 1) = longer memory = faster</span>
+<span class="cm">#  convergence in consistent directions, but risks</span>
+<span class="cm">#  overshooting in sharp minima.</span>
+<span class="cm">#</span>
+<span class="cm">#  Effective update rule visualised:</span>
+<span class="cm">#    v_t  = β·v_{t-1} + (1-β)·g_t   (EMA of grads)</span>
+<span class="cm">#    θ_t  = θ_{t-1} − η·v_t</span>
+<span class="cm">#</span>
+<span class="cm">#  Convergence: O(1/√T) for non-convex, O(1/T) convex</span>
+<span class="cm"># ────────────────────────────────────────────────────</span>
+
+<span class="cm"># LR scheduler (step decay)</span>
+<span class="k">class</span> <span class="cl">StepLR</span>:
+    <span class="k">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, optimizer, step_size=<span class="nm">30</span>, gamma=<span class="nm">0.1</span>):
+        <span class="kw">self</span>.opt       = optimizer
+        <span class="kw">self</span>.step_size = step_size
+        <span class="kw">self</span>.gamma     = gamma
+
+    <span class="k">def</span> <span class="fn">step</span>(<span class="kw">self</span>, epoch):
+        <span class="k">if</span> (epoch + <span class="nm">1</span>) % <span class="kw">self</span>.step_size == <span class="nm">0</span>:
+            <span class="kw">self</span>.opt.lr *= <span class="kw">self</span>.gamma
+</pre></div>
+
+        <div class="code-panel" id="code-adam"><pre>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="cm">#  Adam — Adaptive Moment Estimation</span>
+<span class="cm">#  Kingma & Ba, 2015  (arXiv:1412.6980)</span>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="k">class</span> <span class="cl">Adam</span>:
+    <span class="k">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, lr=<span class="nm">1e-3</span>, beta1=<span class="nm">0.9</span>, beta2=<span class="nm">0.999</span>,
+                 eps=<span class="nm">1e-8</span>, weight_decay=<span class="nm">0</span>, amsgrad=<span class="nm">False</span>):
+        <span class="kw">self</span>.lr           = lr
+        <span class="kw">self</span>.beta1        = beta1        <span class="cm"># 1st moment decay</span>
+        <span class="kw">self</span>.beta2        = beta2        <span class="cm"># 2nd moment decay</span>
+        <span class="kw">self</span>.eps          = eps
+        <span class="kw">self</span>.weight_decay = weight_decay
+        <span class="kw">self</span>.amsgrad      = amsgrad
+        <span class="kw">self</span>.m  = {}   <span class="cm"># 1st moment (mean)</span>
+        <span class="kw">self</span>.v  = {}   <span class="cm"># 2nd moment (uncentered variance)</span>
+        <span class="kw">self</span>.vh = {}   <span class="cm"># max of v (AMSGrad)</span>
+        <span class="kw">self</span>.t  = <span class="nm">0</span>    <span class="cm"># step counter</span>
+
+    <span class="k">def</span> <span class="fn">step</span>(<span class="kw">self</span>, params, grads):
+        <span class="kw">self</span>.t += <span class="nm">1</span>
+        <span class="k">for</span> name, param <span class="k">in</span> params.<span class="fn">items</span>():
+            g = grads[name]
+
+            <span class="k">if</span> <span class="kw">self</span>.weight_decay > <span class="nm">0</span>:
+                g = g + <span class="kw">self</span>.weight_decay * param
+
+            <span class="cm"># Init moments</span>
+            <span class="k">if</span> name <span class="k">not in</span> <span class="kw">self</span>.m:
+                <span class="kw">self</span>.m[name]  = np.<span class="fn">zeros_like</span>(param)
+                <span class="kw">self</span>.v[name]  = np.<span class="fn">zeros_like</span>(param)
+                <span class="kw">self</span>.vh[name] = np.<span class="fn">zeros_like</span>(param)
+
+            <span class="cm"># 1st moment: m_t = β₁·m_{t-1} + (1-β₁)·g_t</span>
+            <span class="kw">self</span>.m[name] = (<span class="kw">self</span>.beta1 * <span class="kw">self</span>.m[name]
+                            + (<span class="nm">1</span> - <span class="kw">self</span>.beta1) * g)
+
+            <span class="cm"># 2nd moment: v_t = β₂·v_{t-1} + (1-β₂)·g_t²</span>
+            <span class="kw">self</span>.v[name] = (<span class="kw">self</span>.beta2 * <span class="kw">self</span>.v[name]
+                            + (<span class="nm">1</span> - <span class="kw">self</span>.beta2) * g ** <span class="nm">2</span>)
+
+            <span class="cm"># Bias correction</span>
+            m_hat = <span class="kw">self</span>.m[name] / (<span class="nm">1</span> - <span class="kw">self</span>.beta1 ** <span class="kw">self</span>.t)
+            v_hat = <span class="kw">self</span>.v[name] / (<span class="nm">1</span> - <span class="kw">self</span>.beta2 ** <span class="kw">self</span>.t)
+
+            <span class="k">if</span> <span class="kw">self</span>.amsgrad:
+                <span class="kw">self</span>.vh[name] = np.<span class="fn">maximum</span>(<span class="kw">self</span>.vh[name], v_hat)
+                denom = np.<span class="fn">sqrt</span>(<span class="kw">self</span>.vh[name]) + <span class="kw">self</span>.eps
+            <span class="k">else</span>:
+                denom = np.<span class="fn">sqrt</span>(v_hat) + <span class="kw">self</span>.eps
+
+            <span class="cm"># θ_t = θ_{t-1} − η·m̂_t / (√v̂_t + ε)</span>
+            param -= <span class="kw">self</span>.lr * m_hat / denom
+
+<span class="cm"># ─── Why bias correction? ───────────────────────────</span>
+<span class="cm">#  At t=1: m_1 = (1-β₁)·g₁ ≈ 0  (initialised at 0)</span>
+<span class="cm">#  Without correction the moments are biased toward 0</span>
+<span class="cm">#  in early steps → very small parameter updates.</span>
+<span class="cm">#  Dividing by (1-β^t) counteracts this warm-up bias.</span>
+<span class="cm"># ────────────────────────────────────────────────────</span>
+</pre></div>
+
+        <div class="code-panel" id="code-rms"><pre>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="cm">#  RMSprop — Root Mean Square Propagation</span>
+<span class="cm">#  Tieleman & Hinton, Coursera 2012</span>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="k">class</span> <span class="cl">RMSprop</span>:
+    <span class="k">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, lr=<span class="nm">1e-2</span>, alpha=<span class="nm">0.99</span>,
+                 eps=<span class="nm">1e-8</span>, momentum=<span class="nm">0</span>, centered=<span class="nm">False</span>):
+        <span class="kw">self</span>.lr       = lr
+        <span class="kw">self</span>.alpha    = alpha      <span class="cm"># decay for square average</span>
+        <span class="kw">self</span>.eps      = eps
+        <span class="kw">self</span>.momentum = momentum
+        <span class="kw">self</span>.centered = centered  <span class="cm"># subtract grad mean (centred RMS)</span>
+        <span class="kw">self</span>.v  = {}   <span class="cm"># EMA of squared gradients</span>
+        <span class="kw">self</span>.g  = {}   <span class="cm"># EMA of gradients (centred mode)</span>
+        <span class="kw">self</span>.buf = {}  <span class="cm"># momentum buffer</span>
+
+    <span class="k">def</span> <span class="fn">step</span>(<span class="kw">self</span>, params, grads):
+        <span class="k">for</span> name, param <span class="k">in</span> params.<span class="fn">items</span>():
+            g = grads[name]
+
+            <span class="k">if</span> name <span class="k">not in</span> <span class="kw">self</span>.v:
+                <span class="kw">self</span>.v[name]   = np.<span class="fn">zeros_like</span>(param)
+                <span class="kw">self</span>.g[name]   = np.<span class="fn">zeros_like</span>(param)
+                <span class="kw">self</span>.buf[name] = np.<span class="fn">zeros_like</span>(param)
+
+            <span class="cm"># v_t = α·v_{t-1} + (1-α)·g_t²</span>
+            <span class="kw">self</span>.v[name] = (<span class="kw">self</span>.alpha * <span class="kw">self</span>.v[name]
+                            + (<span class="nm">1</span> - <span class="kw">self</span>.alpha) * g ** <span class="nm">2</span>)
+
+            <span class="k">if</span> <span class="kw">self</span>.centered:
+                <span class="cm"># Centred RMSprop: subtract the squared mean</span>
+                <span class="kw">self</span>.g[name] = (<span class="kw">self</span>.alpha * <span class="kw">self</span>.g[name]
+                                + (<span class="nm">1</span> - <span class="kw">self</span>.alpha) * g)
+                denom = np.<span class="fn">sqrt</span>(
+                    <span class="kw">self</span>.v[name] - <span class="kw">self</span>.g[name]**<span class="nm">2</span> + <span class="kw">self</span>.eps
+                )
+            <span class="k">else</span>:
+                denom = np.<span class="fn">sqrt</span>(<span class="kw">self</span>.v[name]) + <span class="kw">self</span>.eps
+
+            <span class="k">if</span> <span class="kw">self</span>.momentum > <span class="nm">0</span>:
+                <span class="cm"># θ_t = θ_{t-1} − μ·buf + η·g/denom</span>
+                <span class="kw">self</span>.buf[name] = (<span class="kw">self</span>.momentum * <span class="kw">self</span>.buf[name]
+                                  + <span class="kw">self</span>.lr * g / denom)
+                param -= <span class="kw">self</span>.buf[name]
+            <span class="k">else</span>:
+                <span class="cm"># θ_t = θ_{t-1} − η·g / (√v_t + ε)</span>
+                param -= <span class="kw">self</span>.lr * g / denom
+
+<span class="cm"># ─── Comparison vs Adam ──────────────────────────────</span>
+<span class="cm">#  RMSprop = Adam without bias correction or 1st moment</span>
+<span class="cm">#  Great for: RNNs, online learning, non-stationary</span>
+<span class="cm">#  objectives where recent gradients matter more.</span>
+<span class="cm">#</span>
+<span class="cm">#  Centred RMSprop normalises by variance of gradients</span>
+<span class="cm">#  rather than their second moment — more stable for</span>
+<span class="cm">#  some loss landscapes.</span>
+<span class="cm"># ────────────────────────────────────────────────────</span>
+</pre></div>
+
+        <div class="code-panel" id="code-data"><pre>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="cm">#  Dataset generators used in this lab</span>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="k">import</span> numpy <span class="k">as</span> np
+<span class="k">from</span> sklearn.datasets <span class="k">import</span> make_moons, make_circles, make_blobs
+<span class="k">from</span> sklearn.preprocessing <span class="k">import</span> StandardScaler
+
+<span class="k">def</span> <span class="fn">get_dataset</span>(name, n=<span class="nm">1000</span>, noise=<span class="nm">0.2</span>, seed=<span class="nm">42</span>):
+    rng = np.random.<span class="fn">RandomState</span>(seed)
+
+    <span class="k">if</span> name == <span class="st">'moons'</span>:
+        <span class="cm"># Two interleaved half-circles — classic non-linear</span>
+        X, y = <span class="fn">make_moons</span>(n, noise=noise, random_state=seed)
+
+    <span class="k">elif</span> name == <span class="st">'circles'</span>:
+        <span class="cm"># Concentric rings — requires radial decision boundary</span>
+        X, y = <span class="fn">make_circles</span>(n, noise=noise, factor=<span class="nm">0.4</span>,
+                              random_state=seed)
+
+    <span class="k">elif</span> name == <span class="st">'xor'</span>:
+        <span class="cm"># Classic XOR — 4-quadrant alternating labels</span>
+        X = rng.<span class="fn">randn</span>(n, <span class="nm">2</span>)
+        y = (X[:, <span class="nm">0</span>] * X[:, <span class="nm">1</span>] > <span class="nm">0</span>).astype(<span class="fn">int</span>)
+        X += rng.<span class="fn">randn</span>(n, <span class="nm">2</span>) * noise
+
+    <span class="k">elif</span> name == <span class="st">'spiral'</span>:
+        <span class="cm"># 3-class Archimedean spiral — hard, multi-class</span>
+        k, N = <span class="nm">3</span>, n // <span class="nm">3</span>
+        X, y = [], []
+        <span class="k">for</span> c <span class="k">in</span> <span class="fn">range</span>(k):
+            t = np.<span class="fn">linspace</span>(<span class="nm">0</span>, <span class="nm">1</span>, N)
+            r = t * <span class="nm">4</span>
+            theta = t * <span class="nm">3</span> * np.pi + (<span class="nm">2</span> * np.pi * c / k)
+            X.<span class="fn">append</span>(np.<span class="fn">c_</span>[r * np.<span class="fn">cos</span>(theta) + rng.<span class="fn">randn</span>(N)*noise,
+                             r * np.<span class="fn">sin</span>(theta) + rng.<span class="fn">randn</span>(N)*noise])
+            y.<span class="fn">append</span>(np.<span class="fn">full</span>(N, c))
+        X, y = np.<span class="fn">vstack</span>(X), np.<span class="fn">hstack</span>(y)
+
+    <span class="k">elif</span> name == <span class="st">'regression'</span>:
+        <span class="cm"># Noisy sine wave — 1D regression task</span>
+        X = rng.<span class="fn">uniform</span>(-np.pi, np.pi, (n, <span class="nm">1</span>))
+        y = np.<span class="fn">sin</span>(X.ravel()) + rng.<span class="fn">randn</span>(n) * noise
+
+    <span class="k">elif</span> name == <span class="st">'blobs'</span>:
+        <span class="cm"># 4 Gaussian clusters — multi-class, easy baseline</span>
+        X, y = <span class="fn">make_blobs</span>(n, centers=<span class="nm">4</span>, cluster_std=<span class="nm">1.2</span>,
+                            random_state=seed)
+
+    <span class="k">else</span>:
+        <span class="k">raise</span> <span class="tp">ValueError</span>(<span class="st">f"Unknown dataset: {name}"</span>)
+
+    X = StandardScaler().<span class="fn">fit_transform</span>(X)
+    <span class="k">return</span> X, y
+
+<span class="cm"># ─── Data split & loader ─────────────────────────────</span>
+<span class="k">from</span> sklearn.model_selection <span class="k">import</span> train_test_split
+
+<span class="k">def</span> <span class="fn">load_split</span>(name, val_ratio=<span class="nm">0.2</span>):
+    X, y = <span class="fn">get_dataset</span>(name)
+    <span class="k">return</span> <span class="fn">train_test_split</span>(X, y, test_size=val_ratio,
+                              stratify=y <span class="k">if</span> y.ndim == <span class="nm">1</span> <span class="k">else</span> <span class="nm">None</span>,
+                              random_state=<span class="nm">42</span>)
+</pre></div>
+
+        <div class="code-panel" id="code-model"><pre>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="cm">#  Multi-Layer Perceptron (pure NumPy)</span>
+<span class="cm"># ═══════════════════════════════════════════════</span>
+<span class="k">import</span> numpy <span class="k">as</span> np
+
+<span class="k">class</span> <span class="cl">Linear</span>:
+    <span class="k">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, in_f, out_f):
+        <span class="cm"># He (Kaiming) initialisation</span>
+        scale = np.<span class="fn">sqrt</span>(<span class="nm">2.0</span> / in_f)
+        <span class="kw">self</span>.W = np.random.<span class="fn">randn</span>(in_f, out_f) * scale
+        <span class="kw">self</span>.b = np.<span class="fn">zeros</span>(out_f)
+
+    <span class="k">def</span> <span class="fn">forward</span>(<span class="kw">self</span>, x):
+        <span class="kw">self</span>.x = x
+        <span class="k">return</span> x @ <span class="kw">self</span>.W + <span class="kw">self</span>.b
+
+    <span class="k">def</span> <span class="fn">backward</span>(<span class="kw">self</span>, dout):
+        <span class="kw">self</span>.dW = <span class="kw">self</span>.x.T @ dout
+        <span class="kw">self</span>.db = dout.<span class="fn">sum</span>(axis=<span class="nm">0</span>)
+        <span class="k">return</span> dout @ <span class="kw">self</span>.W.T
+
+<span class="k">class</span> <span class="cl">ReLU</span>:
+    <span class="k">def</span> <span class="fn">forward</span>(<span class="kw">self</span>, x):
+        <span class="kw">self</span>.mask = x > <span class="nm">0</span>
+        <span class="k">return</span> x * <span class="kw">self</span>.mask
+
+    <span class="k">def</span> <span class="fn">backward</span>(<span class="kw">self</span>, dout):
+        <span class="k">return</span> dout * <span class="kw">self</span>.mask
+
+<span class="k">class</span> <span class="cl">Dropout</span>:
+    <span class="k">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, p=<span class="nm">0.1</span>):
+        <span class="kw">self</span>.p = p
+        <span class="kw">self</span>.training = <span class="nm">True</span>
+
+    <span class="k">def</span> <span class="fn">forward</span>(<span class="kw">self</span>, x):
+        <span class="k">if</span> <span class="k">not</span> <span class="kw">self</span>.training:
+            <span class="k">return</span> x
+        <span class="kw">self</span>.mask = (np.random.<span class="fn">rand</span>(*x.shape) > <span class="kw">self</span>.p) / (<span class="nm">1</span> - <span class="kw">self</span>.p)
+        <span class="k">return</span> x * <span class="kw">self</span>.mask
+
+    <span class="k">def</span> <span class="fn">backward</span>(<span class="kw">self</span>, dout):
+        <span class="k">return</span> dout * <span class="kw">self</span>.mask
+
+<span class="k">class</span> <span class="cl">MLP</span>:
+    <span class="k">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, input_dim, hidden_layers, output_dim,
+                 activation=<span class="st">'relu'</span>, dropout=<span class="nm">0.1</span>):
+        dims = [input_dim] + hidden_layers + [output_dim]
+        <span class="kw">self</span>.layers = []
+        <span class="k">for</span> i <span class="k">in</span> <span class="fn">range</span>(<span class="fn">len</span>(dims) - <span class="nm">1</span>):
+            <span class="kw">self</span>.layers.<span class="fn">append</span>(<span class="fn">Linear</span>(dims[i], dims[i+<span class="nm">1</span>]))
+            <span class="k">if</span> i < <span class="fn">len</span>(dims) - <span class="nm">2</span>:  <span class="cm"># no activation on output</span>
+                <span class="kw">self</span>.layers.<span class="fn">append</span>(<span class="fn">ReLU</span>())
+                <span class="k">if</span> dropout > <span class="nm">0</span>:
+                    <span class="kw">self</span>.layers.<span class="fn">append</span>(<span class="fn">Dropout</span>(dropout))
+
+    <span class="k">def</span> <span class="fn">forward</span>(<span class="kw">self</span>, x):
+        <span class="k">for</span> layer <span class="k">in</span> <span class="kw">self</span>.layers: x = layer.<span class="fn">forward</span>(x)
+        <span class="k">return</span> x
+
+    <span class="k">def</span> <span class="fn">backward</span>(<span class="kw">self</span>, dout):
+        <span class="k">for</span> layer <span class="k">in</span> <span class="fn">reversed</span>(<span class="kw">self</span>.layers): dout = layer.<span class="fn">backward</span>(dout)
+
+<span class="cm"># ─── Loss functions ──────────────────────────────────</span>
+<span class="k">def</span> <span class="fn">cross_entropy</span>(logits, y):
+    <span class="cm"># Numerically stable softmax + NLL</span>
+    logits -= logits.<span class="fn">max</span>(axis=<span class="nm">1</span>, keepdims=<span class="nm">True</span>)
+    probs   = np.<span class="fn">exp</span>(logits) / np.<span class="fn">exp</span>(logits).<span class="fn">sum</span>(<span class="nm">1</span>, keepdims=<span class="nm">True</span>)
+    N       = y.shape[<span class="nm">0</span>]
+    loss    = -np.<span class="fn">log</span>(probs[<span class="fn">range</span>(N), y] + <span class="nm">1e-9</span>).<span class="fn">mean</span>()
+    dlogits = probs.copy()
+    dlogits[<span class="fn">range</span>(N), y] -= <span class="nm">1</span>
+    <span class="k">return</span> loss, dlogits / N
+
+<span class="k">def</span> <span class="fn">mse_loss</span>(pred, y):
+    diff = pred.ravel() - y
+    <span class="k">return</span> (diff**<span class="nm">2</span>).<span class="fn">mean</span>(), <span class="nm">2</span> * diff / <span class="fn">len</span>(y)
+</pre></div>
+
+      </div>
+    </div>
+
+  </div><!-- end right-panel -->
+</div><!-- end main-layout -->
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let currentOpt = 'sgd';
+let currentDataset = 'moons';
+let isTraining = false;
+let charts = {};
+
+// ═══════════════════════════════════════════
+//  SLIDER HELPERS
+// ═══════════════════════════════════════════
+function sliderLog(id, el) {
+  const v = Math.pow(10, parseFloat(el.value));
+  document.getElementById('v-'+id).textContent = v < 0.01 ? v.toExponential(1) : v.toFixed(4);
+}
+function sliderLinear(id, el, dec) {
+  document.getElementById('v-'+id).textContent = parseFloat(el.value).toFixed(dec);
+}
+function sliderEps(id, el) {
+  document.getElementById('v-'+id).textContent = '1e' + Math.round(parseFloat(el.value));
+}
+function getLog(id) { return Math.pow(10, parseFloat(document.getElementById('sl-'+id).value)); }
+function getLin(id) { return parseFloat(document.getElementById('sl-'+id).value); }
+
+// ═══════════════════════════════════════════
+//  UI STATE
+// ═══════════════════════════════════════════
+function selectOpt(opt) {
+  currentOpt = opt;
+  document.querySelectorAll('.opt-tab').forEach(b => b.classList.remove('active'));
+  document.querySelector('.opt-tab[data-opt="'+opt+'"]').classList.add('active');
+  ['sgd','adam','rms'].forEach(o => {
+    document.getElementById('params-'+o).style.display = o===opt ? 'flex' : 'none';
+    document.getElementById('params-'+o).style.flexDirection = 'column';
+    document.getElementById('params-'+o).style.gap = '8px';
+  });
+  document.getElementById('params-'+opt).style.display = 'flex';
+}
+
+function selectDataset(name) {
+  currentDataset = name;
+  document.querySelectorAll('.ds-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('ds-'+name).classList.add('active');
+  document.querySelectorAll('.ds-mini').forEach(c => c.classList.remove('active'));
+  document.getElementById('mini-'+name).classList.add('active');
+}
+
+function showCode(tab) {
+  document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('ctab-'+tab).classList.add('active');
+  document.getElementById('code-'+tab).classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+//  DATASET GENERATORS (2D)
+// ═══════════════════════════════════════════
+function randn() {
+  let u=0, v=0;
+  while(!u) u = Math.random();
+  while(!v) v = Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+
+function generateDataset(name, n=600) {
+  const pts = [];
+  const rng = () => Math.random();
+  if (name === 'moons') {
+    const half = Math.floor(n/2);
+    for(let i=0;i<half;i++){
+      const a = Math.PI * i/half;
+      pts.push({x: Math.cos(a)+randn()*0.12, y: Math.sin(a)+randn()*0.12, c:0});
+    }
+    for(let i=0;i<half;i++){
+      const a = Math.PI * i/half;
+      pts.push({x: 1-Math.cos(a)+randn()*0.12, y: 0.5-Math.sin(a)+randn()*0.12, c:1});
+    }
+  } else if (name === 'circles') {
+    const half = Math.floor(n/2);
+    for(let i=0;i<half;i++){
+      const a=2*Math.PI*rng(), r=1+randn()*0.1;
+      pts.push({x:r*Math.cos(a), y:r*Math.sin(a), c:0});
+    }
+    for(let i=0;i<half;i++){
+      const a=2*Math.PI*rng(), r=0.4+randn()*0.08;
+      pts.push({x:r*Math.cos(a), y:r*Math.sin(a), c:1});
+    }
+  } else if (name === 'xor') {
+    for(let i=0;i<n;i++){
+      const x=randn(), y=randn();
+      const c = (x*y > 0) ? 0 : 1;
+      pts.push({x:x+randn()*0.1, y:y+randn()*0.1, c});
+    }
+  } else if (name === 'spiral') {
+    const k=3, N=Math.floor(n/k);
+    for(let cl=0;cl<k;cl++){
+      for(let i=0;i<N;i++){
+        const t=i/N, r=t*3;
+        const ang = t*2.5*Math.PI + (2*Math.PI*cl/k);
+        pts.push({x:r*Math.cos(ang)+randn()*0.12, y:r*Math.sin(ang)+randn()*0.12, c:cl});
+      }
+    }
+  } else if (name === 'linear') {
+    for(let i=0;i<n;i++){
+      const x=(rng()-0.5)*6;
+      pts.push({x, y:Math.sin(x)+randn()*0.3, c:0});
+    }
+  } else if (name === 'blob') {
+    const centers=[[-2,-2],[2,-2],[-2,2],[2,2]];
+    for(let i=0;i<n;i++){
+      const cl=i%4;
+      pts.push({x:centers[cl][0]+randn()*0.9, y:centers[cl][1]+randn()*0.9, c:cl});
+    }
+  }
+  return pts;
+}
+
+// ═══════════════════════════════════════════
+//  DRAW MINI PREVIEWS
+// ═══════════════════════════════════════════
+const COLORS4 = ['#60a5fa','#4ade80','#f97316','#a78bfa','#f87171','#fbbf24'];
+const BG = '#0f1117';
+
+function drawPreview(name) {
+  const cv = document.getElementById('cv-'+name);
+  if (!cv) return;
+  const W = cv.offsetWidth || 120, H = 90;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#0a0c10';
+  ctx.fillRect(0,0,W,H);
+
+  const pts = generateDataset(name, 300);
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const pad=8;
+
+  pts.forEach(p=>{
+    const px = pad + (p.x-minX)/(maxX-minX+0.001)*(W-2*pad);
+    const py = H-pad - (p.y-minY)/(maxY-minY+0.001)*(H-2*pad);
+    ctx.beginPath();
+    ctx.arc(px,py, name==='linear' ? 2 : 3, 0, 2*Math.PI);
+    ctx.fillStyle = COLORS4[p.c % COLORS4.length] + 'cc';
+    ctx.fill();
+  });
+}
+
+function drawAllPreviews() {
+  ['moons','circles','xor','spiral','linear','blob'].forEach(drawPreview);
+}
+
+setTimeout(drawAllPreviews, 100);
+window.addEventListener('resize', drawAllPreviews);
+
+// ═══════════════════════════════════════════
+//  CHART FACTORY
+// ═══════════════════════════════════════════
+function makeChart(id, datasets, opts={}) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks:{ color:'#6b7280', font:{size:10,family:'JetBrains Mono'}, maxTicksLimit:8 },
+             grid:{ color:'rgba(255,255,255,0.04)' } },
+        y: { ticks:{ color:'#6b7280', font:{size:10,family:'JetBrains Mono'} },
+             grid:{ color:'rgba(255,255,255,0.04)' }, min: opts.yMin ?? undefined }
+      },
+      ...opts
+    }
+  });
+  return charts[id];
+}
+
+function initCharts() {
+  makeChart('lossChart', [
+    {label:'Train', data:[], borderColor:'#60a5fa', borderWidth:2, pointRadius:0, tension:0.4},
+    {label:'Val',   data:[], borderColor:'#60a5fa', borderWidth:1.5, borderDash:[4,3], pointRadius:0, tension:0.4, borderOpacity:0.4}
+  ], {yMin:0});
+  makeChart('accChart', [
+    {label:'Val Acc', data:[], borderColor:'#4ade80', borderWidth:2, pointRadius:0, tension:0.4, fill:true,
+     backgroundColor:'rgba(74,222,128,0.06)'}
+  ], {yMin:0});
+  makeChart('gradChart', [
+    {label:'Grad Norm', data:[], borderColor:'#fbbf24', borderWidth:2, pointRadius:0, tension:0.4}
+  ], {yMin:0});
+  makeChart('effLrChart', [
+    {label:'Eff LR', data:[], borderColor:'#a78bfa', borderWidth:2, pointRadius:0, tension:0.4}
+  ], {yMin:0});
+  makeChart('cmpChart', [
+    {label:'SGD+Mom', data:[], borderColor:'#60a5fa', borderWidth:2, pointRadius:0, tension:0.4},
+    {label:'Adam',    data:[], borderColor:'#4ade80', borderWidth:2, pointRadius:0, tension:0.4},
+    {label:'RMSprop', data:[], borderColor:'#f97316', borderWidth:2, pointRadius:0, tension:0.4}
+  ], {yMin:0});
+}
+
+initCharts();
+
+// ═══════════════════════════════════════════
+//  SIMULATE TRAINING
+// ═══════════════════════════════════════════
+const DATASET_META = {
+  moons:   { task:'cls', diff:0.7,  noise:0.15 },
+  circles: { task:'cls', diff:0.85, noise:0.18 },
+  xor:     { task:'cls', diff:0.9,  noise:0.2  },
+  spiral:  { task:'cls', diff:1.1,  noise:0.25 },
+  linear:  { task:'reg', diff:0.5,  noise:0.1  },
+  blob:    { task:'cls', diff:0.4,  noise:0.08 },
+};
+
+function simulate(opt, lr, epochs, extraParams, dataset) {
+  const meta = DATASET_META[dataset];
+  const isReg = meta.task === 'reg';
+  const baseLoss = isReg ? 1.8 : 2.0;
+  const noise = meta.noise;
+  const diff = meta.diff;
+
+  let cr, finalTL, overfit;
+  if (opt === 'sgd') {
+    cr = lr * (1 + extraParams.momentum * 2.5) * (1/diff);
+    finalTL = 0.07 + Math.random()*0.06;
+    overfit = 0.012;
+  } else if (opt === 'adam') {
+    cr = lr * 22 * (1/diff);
+    finalTL = 0.06 + Math.random()*0.05;
+    overfit = 0.022;
+  } else {
+    cr = lr * 14 * (1/diff);
+    finalTL = 0.08 + Math.random()*0.06;
+    overfit = 0.018;
+  }
+  cr = Math.min(cr, 0.75);
+
+  const trainL=[], valL=[], acc=[], gnorm=[], effLr=[];
+  let m=0, v2=0, vbuf=0;
+
+  for (let e=0; e<epochs; e++) {
+    const t = e/epochs;
+    const decay = Math.exp(-cr * e);
+    const tl = Math.max(0.01, finalTL + (baseLoss - finalTL)*decay + (Math.random()-0.5)*noise*(1-t*0.4));
+    const vl = Math.max(0.015, tl + overfit*Math.max(0, e-epochs*0.65) + (Math.random()-0.5)*noise*0.7);
+
+    trainL.push(tl);
+    valL.push(vl);
+
+    const a = isReg
+      ? Math.max(0, 1 - vl/baseLoss)
+      : Math.min(99.8, 100*(1 - vl*0.55) + (Math.random()-0.5)*1.5);
+    acc.push(isReg ? a : Math.max(40, a));
+
+    const gn = Math.max(0.001, (baseLoss-finalTL)*decay*2.8 + Math.random()*0.08);
+    gnorm.push(gn);
+
+    let eff;
+    if (opt === 'sgd') {
+      m = extraParams.momentum*m + (1-extraParams.momentum)*gn;
+      eff = lr;
+    } else if (opt === 'adam') {
+      m  = extraParams.b1*m  + (1-extraParams.b1)*gn;
+      v2 = extraParams.b2*v2 + (1-extraParams.b2)*gn*gn;
+      const mh = m/(1-Math.pow(extraParams.b1,e+1));
+      const vh = v2/(1-Math.pow(extraParams.b2,e+1));
+      eff = lr/(Math.sqrt(Math.abs(vh)) + extraParams.eps);
+    } else {
+      v2 = extraParams.alpha*v2 + (1-extraParams.alpha)*gn*gn;
+      eff = lr/(Math.sqrt(Math.abs(v2)) + 1e-8);
+    }
+    effLr.push(Math.min(eff, lr*6));
+  }
+
+  return {trainL, valL, acc, gnorm, effLr};
+}
+
+function getParams() {
+  if (currentOpt === 'sgd')
+    return { lr: getLog('lr-sgd'), momentum: getLin('mom'), wd: getLog('wd'), b1:0.9, b2:0.999, eps:1e-8, alpha:0.99 };
+  if (currentOpt === 'adam')
+    return { lr: getLog('lr-adam'), b1: getLin('b1'), b2: getLin('b2'), eps: Math.pow(10, getLin('eps')), momentum:0.9, alpha:0.99, wd:0 };
+  return { lr: getLog('lr-rms'), alpha: getLin('alpha'), momentum: getLin('rms-mom'), b1:0.9, b2:0.999, eps:1e-8, wd:0 };
+}
+
+function setStatus(msg, running=false) {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('status-dot').className = 'status-dot' + (running ? ' running' : '');
+}
+
+function setProgress(pct) {
+  document.getElementById('progress-bar').style.width = pct+'%';
+}
+
+// ═══════════════════════════════════════════
+//  TRAINING RUNNER
+// ═══════════════════════════════════════════
+function startTraining() {
+  if (isTraining) return;
+  isTraining = true;
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  document.getElementById('run-label').textContent = 'Training…';
+  document.getElementById('run-icon').textContent = '⏸';
+
+  const epochs = Math.round(getLin('epochs'));
+  const params = getParams();
+  const meta   = DATASET_META[currentDataset];
+  const isReg  = meta.task === 'reg';
+
+  document.getElementById('m3-label').textContent = isReg ? 'R² Score' : 'Accuracy';
+  document.getElementById('m-tloss-sub').textContent = isReg ? 'MSE loss' : 'Cross-entropy';
+  document.getElementById('m-perf-sub').textContent = isReg ? 'Validation set' : 'Validation set';
+  document.getElementById('m-epoch-sub').textContent = '/ '+epochs;
+
+  const result = simulate(currentOpt, params.lr, epochs, params, currentDataset);
+  const labels = Array.from({length:epochs}, (_,i)=>i+1);
+
+  // Reset charts
+  ['lossChart','accChart','gradChart','effLrChart'].forEach(id => {
+    charts[id].data.labels = [];
+    charts[id].data.datasets.forEach(d=>d.data=[]);
+  });
+
+  let i=0;
+  const step = Math.max(1, Math.floor(epochs/80));
+
+  function tick() {
+    if (i >= epochs) {
+      isTraining = false;
+      btn.disabled = false;
+      document.getElementById('run-label').textContent = 'Train Network';
+      document.getElementById('run-icon').textContent = '▶';
+      setStatus('Training complete — '+currentOpt.toUpperCase()+' on '+currentDataset, false);
+      setProgress(100);
+      return;
+    }
+
+    const end = Math.min(i+step, epochs);
+    for (let j=i;j<end;j++) {
+      charts['lossChart'].data.labels.push(j+1);
+      charts['lossChart'].data.datasets[0].data.push(result.trainL[j]);
+      charts['lossChart'].data.datasets[1].data.push(result.valL[j]);
+      charts['accChart'].data.labels.push(j+1);
+      charts['accChart'].data.datasets[0].data.push(result.acc[j]);
+      charts['gradChart'].data.labels.push(j+1);
+      charts['gradChart'].data.datasets[0].data.push(result.gnorm[j]);
+      charts['effLrChart'].data.labels.push(j+1);
+      charts['effLrChart'].data.datasets[0].data.push(result.effLr[j]);
+    }
+
+    ['lossChart','accChart','gradChart','effLrChart'].forEach(id=>charts[id].update('none'));
+
+    const cur = end-1;
+    const tl  = result.trainL[cur];
+    const vl  = result.valL[cur];
+    const a   = result.acc[cur];
+    const gn  = result.gnorm[cur];
+
+    document.getElementById('m-tloss').textContent = tl.toFixed(4);
+    document.getElementById('m-vloss').textContent = vl.toFixed(4);
+    document.getElementById('m-gnorm').textContent = gn.toFixed(4);
+    document.getElementById('m-epoch').textContent = end;
+
+    const perfEl = document.getElementById('m-perf');
+    if (isReg) {
+      perfEl.textContent = a.toFixed(3);
+      perfEl.className = 'metric-value '+(a>0.85?'good':a>0.6?'warn':'bad');
+    } else {
+      perfEl.textContent = a.toFixed(1)+'%';
+      perfEl.className = 'metric-value '+(a>85?'good':a>65?'warn':'bad');
+    }
+
+    setStatus('Epoch '+end+'/'+epochs+' — '+currentOpt.toUpperCase()+' | lr='+params.lr.toExponential(1)+' | loss='+tl.toFixed(4), true);
+    setProgress(100*end/epochs);
+
+    i = end;
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+}
+
+// ═══════════════════════════════════════════
+//  COMPARE ALL
+// ═══════════════════════════════════════════
+function compareAll() {
+  const epochs = Math.round(getLin('epochs'));
+  const labels = Array.from({length:epochs},(_,i)=>i+1);
+
+  const sgdP = {lr:0.01, momentum:0.9, b1:0.9, b2:0.999, eps:1e-8, alpha:0.99};
+  const admP = {lr:0.001, b1:0.9, b2:0.999, eps:1e-8, momentum:0.9, alpha:0.99};
+  const rmsP = {lr:0.003, alpha:0.99, momentum:0, b1:0.9, b2:0.999, eps:1e-8};
+
+  const sgd = simulate('sgd',  sgdP.lr, epochs, sgdP, currentDataset);
+  const adm = simulate('adam', admP.lr, epochs, admP, currentDataset);
+  const rms = simulate('rms',  rmsP.lr, epochs, rmsP, currentDataset);
+
+  const cc = charts['cmpChart'];
+  cc.data.labels = labels;
+  cc.data.datasets[0].data = sgd.valL;
+  cc.data.datasets[1].data = adm.valL;
+  cc.data.datasets[2].data = rms.valL;
+  cc.update();
+
+  setStatus('Comparison complete — '+currentDataset+' dataset, all 3 optimizers');
+}
+</script>
+</body>
+</html>
